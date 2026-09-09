@@ -1,0 +1,112 @@
+name: Build TWRP Aione
+
+on:
+  workflow_dispatch:
+
+jobs:
+
+  build:
+
+    runs-on: ubuntu-20.04
+
+
+    steps:
+
+    - name: Checkout
+      uses: actions/checkout@v4
+
+
+    - name: Install dependencies
+      run: |
+        sudo apt update
+
+        sudo apt install -y \
+        bc \
+        bison \
+        build-essential \
+        curl \
+        flex \
+        g++-multilib \
+        gcc-multilib \
+        git \
+        gnupg \
+        imagemagick \
+        lib32ncurses5-dev \
+        lib32z1-dev \
+        libncurses5-dev \
+        libssl-dev \
+        openjdk-8-jdk \
+        python3 \
+        rsync \
+        unzip \
+        zip
+
+
+    - name: Install repo
+      run: |
+
+        mkdir -p ~/bin
+
+        curl https://storage.googleapis.com/git-repo-downloads/repo \
+        > ~/bin/repo
+
+        chmod a+x ~/bin/repo
+
+        echo "$HOME/bin" >> $GITHUB_PATH
+
+
+
+    - name: Sync TWRP source
+      run: |
+
+        mkdir twrp
+
+        cd twrp
+
+
+        repo init \
+        -u https://github.com/minimal-manifest-twrp/platform_manifest_twrp_aosp.git \
+        -b twrp-9.0
+
+
+        repo sync \
+        -j$(nproc) \
+        --force-sync
+
+
+
+    - name: Copy device tree
+      run: |
+
+        mkdir -p twrp/device/cloudminds
+
+        cp -r device/cloudminds/aione \
+        twrp/device/cloudminds/
+
+
+
+    - name: Build
+      run: |
+
+        cd twrp
+
+
+        source build/envsetup.sh
+
+
+        lunch twrp_aione-eng
+
+
+        mka recoveryimage
+
+
+
+    - name: Upload recovery.img
+      uses: actions/upload-artifact@v4
+
+      with:
+
+        name: twrp-aione-recovery
+
+        path: |
+          twrp/out/target/product/aione/recovery.img
