@@ -4,80 +4,109 @@ on:
   workflow_dispatch:
 
 jobs:
-
   build:
-
     runs-on: ubuntu-22.04
-
 
     steps:
 
-    - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
+      - name: Install dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y \
+            repo \
+            git \
+            git-lfs \
+            bc \
+            bison \
+            build-essential \
+            flex \
+            gperf \
+            libncurses5-dev \
+            libncurses-dev \
+            libssl-dev \
+            libxml2-utils \
+            unzip \
+            zip \
+            zstd
 
-    - name: Install
-      run: |
-        sudo apt update
-        sudo apt install -y repo git
+      - name: Add Swap
+        run: |
+          set -eux
 
+          if swapon --show=NAME --noheadings | grep -qx '/swapfile'; then
+            echo "/swapfile is already active"
+          else
+            sudo swapoff /swapfile 2>/dev/null || true
+            sudo rm -f /swapfile
 
-    - name: Add Swap
-      run: |
-        sudo fallocate -l 12G /swapfile
-        sudo chmod 600 /swapfile
-        sudo mkswap /swapfile
-        sudo swapon /swapfile
-        free -h
+            sudo dd if=/dev/zero \
+              of=/swapfile \
+              bs=1M \
+              count=12288 \
+              status=progress
 
+            sudo chmod 600 /swapfile
+            sudo mkswap /swapfile
+            sudo swapon /swapfile
+          fi
 
-    - name: Sync
-      run: |
+          free -h
+          swapon --show
 
-        mkdir twrp
+      - name: Check manifest branches
+        run: |
+          git ls-remote --heads \
+            https://github.com/minimal-manifest-twrp/platform_manifest_twrp_aosp.git
 
-        cd twrp
+      - name: Sync TWRP source
+        run: |
+          mkdir -p twrp
+          cd twrp
 
+          repo init \
+            -u https://github.com/minimal-manifest-twrp/platform_manifest_twrp_aosp.git \
+            -b twrp-8.1-stable
 
-        repo init \
-        -u https://github.com/minimal-manifest-twrp/platform_manifest_twrp_aosp.git \
-        -b twrp-8.1-stable
+          repo sync \
+            -c \
+            --force-sync \
+            --no-clone-bundle \
+            --no-tags \
+            -j8
 
+      - name: Copy device tree
+        run: |
+          mkdir -p twrp/device/cloudminds
+          cp -rv device/cloudminds/aione \
+            twrp/device/cloudminds/
 
-        repo sync \
-        -c \
-        --force-sync \
-        --no-clone-bundle \
-        --no-tags \
-        -j8
+      - name: Check device tree
+        run: |
+          echo "=== Device tree ==="
+          find twrp/device/cloudminds/aione -maxdepth 2 -type f | sort
 
+          echo "=== AndroidProducts.mk ==="
+          cat twrp/device/cloudminds/aione/AndroidProducts.mk
 
+          echo "=== BoardConfig.mk ==="
+          cat twrp/device/cloudminds/aione/BoardConfig.mk
 
-    - name: Copy device tree
-      run: |
+      - name: Build TWRP
+        run: |
+          cd twrp
 
-        cp -rv device/* twrp/device/
+          source build/envsetup.sh
 
+          lunch twrp_aione-eng
 
-    - name: Build
-      run: |
+          mka recoveryimage
 
-        cd twrp
-
-        source build/envsetup.sh
-
-        lunch twrp_aione-eng
-
-        mka recoveryimage
-
-
-
-    - name: Upload
-      uses: actions/upload-artifact@v4
-
-      with:
-
-        name: recovery
-
-        path: |
-
-          twrp/out/target/product/aione/recovery.img
+      - name: Upload recovery
+        uses: actions/upload-artifact@v4
+        with:
+          name: recovery
+          path: twrp/out/target/product/aione/recovery.img
+          if-no-files-found: error
