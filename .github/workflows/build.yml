@@ -68,7 +68,8 @@ jobs:
 
           repo init \
             -u https://github.com/minimal-manifest-twrp/platform_manifest_twrp_omni.git \
-            -b twrp-8.1
+            -b twrp-8.1 \
+            --depth=1
 
           repo sync \
             -c \
@@ -98,9 +99,11 @@ jobs:
         run: |
           cd twrp
 
+          export ALLOW_MISSING_DEPENDENCIES=true
+
           source build/envsetup.sh
 
-          lunch twrp_aione-eng
+          lunch omni_aione-eng
 
           mka recoveryimage
 
