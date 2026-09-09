@@ -1,0 +1,33 @@
+DEVICE_PATH := device/cloudminds/aione
+
+
+TARGET_BOARD_PLATFORM := msm8996
+
+
+TARGET_ARCH := arm64
+TARGET_CPU_VARIANT := kryo
+
+
+BOARD_KERNEL_PAGESIZE := 4096
+
+
+BOARD_RECOVERYIMAGE_PARTITION_SIZE := 67108864
+
+
+TARGET_RECOVERY_FSTAB := \
+$(DEVICE_PATH)/recovery.fstab
+
+
+TARGET_PREBUILT_KERNEL := \
+$(DEVICE_PATH)/prebuilt/kernel
+
+
+TW_THEME := portrait_hdpi
+
+
+TW_INCLUDE_CRYPTO := true
+
+TW_INCLUDE_FBE := false
+
+
+SELINUX_IGNORE_NEVERALLOWS := true

@@ -1,0 +1,69 @@
+name: Build TWRP AIOne
+
+
+on:
+ workflow_dispatch:
+
+
+jobs:
+
+ build:
+
+  runs-on: ubuntu-22.04
+
+
+  steps:
+
+  - uses: actions/checkout@v4
+
+
+  - name: Install
+    run: |
+      sudo apt update
+      sudo apt install -y repo git
+
+
+  - name: Sync
+    run: |
+
+      mkdir twrp
+
+      cd twrp
+
+      repo init       -u https://github.com/minimal-manifest-twrp/platform_manifest_twrp_aosp.git       -b twrp-8.1
+
+
+      repo sync -j8
+
+
+  - name: Copy device
+
+    run: |
+
+      cp -r device twrp/
+
+
+  - name: Build
+
+    run: |
+
+      cd twrp
+
+      source build/envsetup.sh
+
+      lunch twrp_aione-eng
+
+      mka recoveryimage
+
+
+  - name: Upload
+
+    uses: actions/upload-artifact@v4
+
+    with:
+
+      name: recovery
+
+      path:
+
+       twrp/out/target/product/aione/recovery.img
