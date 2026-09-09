@@ -1,69 +1,83 @@
 name: Build TWRP AIOne
 
-
 on:
- workflow_dispatch:
-
+  workflow_dispatch:
 
 jobs:
 
- build:
+  build:
 
-  runs-on: ubuntu-22.04
-
-
-  steps:
-
-  - uses: actions/checkout@v4
+    runs-on: ubuntu-22.04
 
 
-  - name: Install
-    run: |
-      sudo apt update
-      sudo apt install -y repo git
+    steps:
+
+    - uses: actions/checkout@v4
 
 
-  - name: Sync
-    run: |
-
-      mkdir twrp
-
-      cd twrp
-
-      repo init       -u https://github.com/minimal-manifest-twrp/platform_manifest_twrp_aosp.git       -b twrp-8.1
+    - name: Install
+      run: |
+        sudo apt update
+        sudo apt install -y repo git
 
 
-      repo sync -j8
+    - name: Add Swap
+      run: |
+        sudo fallocate -l 12G /swapfile
+        sudo chmod 600 /swapfile
+        sudo mkswap /swapfile
+        sudo swapon /swapfile
+        free -h
 
 
-  - name: Copy device
+    - name: Sync
+      run: |
 
-    run: |
+        mkdir twrp
 
-      cp -r device twrp/
-
-
-  - name: Build
-
-    run: |
-
-      cd twrp
-
-      source build/envsetup.sh
-
-      lunch twrp_aione-eng
-
-      mka recoveryimage
+        cd twrp
 
 
-  - name: Upload
+        repo init \
+        -u https://github.com/minimal-manifest-twrp/platform_manifest_twrp_aosp.git \
+        -b twrp-8.1-stable
 
-    uses: actions/upload-artifact@v4
 
-    with:
+        repo sync \
+        -c \
+        --force-sync \
+        --no-clone-bundle \
+        --no-tags \
+        -j8
 
-      name: recovery
 
-      path:
 
-       twrp/out/target/product/aione/recovery.img
+    - name: Copy device tree
+      run: |
+
+        cp -rv device/* twrp/device/
+
+
+    - name: Build
+      run: |
+
+        cd twrp
+
+        source build/envsetup.sh
+
+        lunch twrp_aione-eng
+
+        mka recoveryimage
+
+
+
+    - name: Upload
+      uses: actions/upload-artifact@v4
+
+      with:
+
+        name: recovery
+
+        path: |
+
+          twrp/out/target/product/aione/recovery.img
